@@ -1,0 +1,13 @@
+{
+  "name": "slack-items-app",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@slack/bolt": "^3.16.0",
+    "csv-parse": "^5.5.6",
+    "dotenv": "^16.4.0"
+  }
+}
