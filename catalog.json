@@ -1,28 +1,5 @@
 {
-  "A Frame": [
-    "White Deluxe A-Frame Signs + 2 inserts Durable - Reusable - Portable - Weather Resistant",
-    "Black Metal Sidewalk A-Frame Signs + 2 inserts",
-    "Custom"
-  ],
-  "Banners": [
-    "13oz Vinyl Banner (hem + grommets)",
-    "18oz Heavy Duty Banner",
-    "Mesh Banner (wind-permeable)",
-    "Custom"
-  ],
-  "Stickers": [
-    "Glossy Vinyl Stickers (die-cut)",
-    "Matte Vinyl Stickers (kiss-cut sheet)",
-    "Custom"
-  ],
-  "Business Cards": [
-    "16pt + Matte Lamination (single-sided)",
-    "16pt + Matte Lamination (double-sided)",
-    "Custom"
-  ],
-  "Foamboard": [
-    "3/16\" Foamboard, full color print",
-    "3/16\" Foamboard, double-sided print",
-    "Custom"
-  ]
+  "A Frames": ["opt1", "opt2", "Custom"],
+  "Box": ["opt1", "opt2", "Custom"],
+  "Stickers": ["opt1", "opt2", "Custom"]
 }
