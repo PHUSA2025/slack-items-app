@@ -9,25 +9,53 @@ import { parse } from 'csv-parse/sync';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// -----------------------------
-//  Load catalog (JSON or CSV)
-// -----------------------------
+/**
+ * Catalogul pentru TEST:
+ *  - A Frames (5 opțiuni)
+ *  - Box (5 opțiuni)
+ *  - Stickers (5 opțiuni)
+ * Poți extinde ulterior aici sau în catalog.json / catalog.csv
+ */
+const TEST_CATALOG = {
+  "A Frames": [
+    "Double-sided frame 24x36",
+    "Outdoor A-frame white",
+    "Indoor A-frame black",
+    "Foldable A-frame",
+    "Heavy-duty A-frame",
+    "Custom" // lăsăm mereu și Custom
+  ],
+  "Box": [
+    "Small shipping box 10x10x5",
+    "Medium retail box 12x12x8",
+    "Large packaging box 20x20x15",
+    "Custom printed box",
+    "Kraft eco-friendly box",
+    "Custom"
+  ],
+  "Stickers": [
+    "Full color die-cut sticker",
+    "Clear vinyl sticker",
+    "Matte finish sticker",
+    "Glossy round sticker",
+    "Waterproof bumper sticker",
+    "Custom"
+  ]
+};
+
+// ===== Loader generic (opțional): catalog.json sau catalog.csv =====
 function loadCatalog() {
   const jsonPath = path.join(__dirname, 'catalog.json');
   const csvPath  = path.join(__dirname, 'catalog.csv');
 
-  // Prefer JSON if present
   if (fs.existsSync(jsonPath)) {
     const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-    // Expect: { "A Frame": ["opt1","opt2","Custom"], ... }
     return data;
   }
 
-  // Fallback to CSV if present
   if (fs.existsSync(csvPath)) {
     const csv = fs.readFileSync(csvPath, 'utf8');
     const rows = parse(csv, { columns: true, skip_empty_lines: true });
-    // Expect CSV headers: Item,Description
     const map = {};
     for (const r of rows) {
       const item = (r.Item || '').trim();
@@ -36,54 +64,25 @@ function loadCatalog() {
       if (!map[item]) map[item] = [];
       map[item].push(desc);
     }
-    // ensure each item has "Custom" at the end (if vrei mereu disponibil)
     for (const k of Object.keys(map)) {
       if (!map[k].includes('Custom')) map[k].push('Custom');
     }
     return map;
   }
 
-  // Default sample if nothing found
-  return {
-    "A Frame": [
-      "White Deluxe A-Frame Signs + 2 inserts Durable - Reusable - Portable - Weather Resistant",
-      "Black Metal Sidewalk A-Frame Signs + 2 inserts",
-      "Custom"
-    ],
-    "Banners": [
-      "13oz Vinyl Banner (hem + grommets)",
-      "Mesh Banner (wind-permeable)",
-      "Custom"
-    ],
-    "Stickers": [
-      "Glossy Vinyl Stickers (die-cut)",
-      "Matte Vinyl Stickers (kiss-cut sheet)",
-      "Custom"
-    ],
-    "Business Cards": [
-      "16pt + Matte Lamination (single-sided)",
-      "16pt + Matte Lamination (double-sided)",
-      "Custom"
-    ],
-    "Foamboard": [
-      "3/16\" Foamboard, full color print",
-      "3/16\" Foamboard, double-sided print",
-      "Custom"
-    ]
-  };
+  // fallback: test catalog
+  return TEST_CATALOG;
 }
 
 const CATALOG = loadCatalog();
 
-// Utility: Slack option labels max ~75 chars
+// Slack option label limit (~75 chars)
 const toOption = (txt) => ({
   text: { type: 'plain_text', text: txt.length > 75 ? txt.slice(0, 72) + '…' : txt },
   value: txt
 });
 
-// -----------------------------
-//   Slack app setup (Express)
-// -----------------------------
+// ------------- Slack app (ExpressReceiver) -------------
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET
 });
@@ -93,14 +92,12 @@ const app = new App({
   receiver
 });
 
-// Health check (utile pt Render)
+// Health check (Render)
 receiver.app.get('/', (_req, res) => {
   res.status(200).send('OK');
 });
 
-// -----------------------------
-//   Slash command: /newitem
-// -----------------------------
+// ------------- /newitem -------------
 app.command('/newitem', async ({ ack, body, client }) => {
   await ack();
 
@@ -118,7 +115,7 @@ app.command('/newitem', async ({ ack, body, client }) => {
         {
           type: 'input',
           block_id: 'item_block',
-          label: { type: 'plain_text', text: 'Item' },
+          label: { type: 'plain_text', text: 'New Items' },
           element: {
             type: 'static_select',
             action_id: 'item_select',
@@ -136,23 +133,23 @@ app.command('/newitem', async ({ ack, body, client }) => {
   });
 });
 
-// Când selectezi Item → încarcă Description
+// Item select → load Description options
 app.action('item_select', async ({ ack, body, client }) => {
   await ack();
 
   const view = body.view;
-  const selectedItem =
-    body.actions?.[0]?.selected_option?.value || null;
-
+  const selectedItem = body.actions?.[0]?.selected_option?.value || null;
   const descs = (selectedItem && CATALOG[selectedItem]) || [];
   const descOptions = descs.map(toOption);
 
   const newBlocks = [
+    // păstrăm blocul cu Item
     view.blocks.find(b => b.block_id === 'item_block'),
+    // Description dependent
     {
       type: 'input',
       block_id: 'desc_block',
-      label: { type: 'plain_text', text: 'Description' },
+      label: { type: 'plain_text', text: 'New Description' },
       element: {
         type: 'static_select',
         action_id: 'desc_select',
@@ -169,7 +166,7 @@ app.action('item_select', async ({ ack, body, client }) => {
   });
 });
 
-// Când selectezi Description → dacă e Custom, arată input text
+// Description select → if Custom, show text input
 app.action('desc_select', async ({ ack, body, client }) => {
   await ack();
 
@@ -205,31 +202,32 @@ app.action('desc_select', async ({ ack, body, client }) => {
   });
 });
 
-// Submit → trimite în canal (sau salvează în altă parte)
+// Submit → post message (gata de copiat în List)
 app.view('item_modal', async ({ ack, body, view, client }) => {
   await ack();
 
   const state = view.state.values;
-
   const item =
     state?.item_block?.item_select?.selected_option?.value || '—';
-
   const desc =
     state?.desc_block?.desc_select?.selected_option?.value || '—';
-
   const customText =
     state?.custom_block?.custom_input?.value || '';
 
-  const finalDescription =
-    desc === 'Custom' && customText ? customText : desc;
+  const finalDescription = (desc === 'Custom' && customText) ? customText : desc;
+
+  const channel = process.env.SLACK_TARGET_CHANNEL || '#general';
+
+  // mesaj compact, ușor de copiat în cele 2 coloane din List
+  const text = `*New Items:* ${item}\n*New Description:* ${finalDescription}`;
 
   await client.chat.postMessage({
-    channel: process.env.SLACK_TARGET_CHANNEL || '#general',
-    text: `*New Selection*\n• Item: ${item}\n• Description: ${finalDescription}`
+    channel,
+    text
   });
 });
 
-// Start
+// Start app
 (async () => {
   const port = process.env.PORT || 3000;
   await app.start(port);
