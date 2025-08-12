@@ -2,7 +2,8 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { App, ExpressReceiver } from '@slack/bolt';
+import bolt from '@slack/bolt';
+const { App, ExpressReceiver } = bolt;
 import { parse } from 'csv-parse/sync';
 
 const __filename = fileURLToPath(import.meta.url);
